@@ -19,12 +19,25 @@ def split : List (Prod Nat Nat) -> Prod (List Nat) (List Nat)
     )
 
 def solve (input : List (Prod Nat Nat)) : Nat :=
-  let f : List Nat -> Array Nat := fun l => Array.qsort (List.toArray l) (fun a b => a < b)
+  let f : List Nat -> Array Nat := fun l => Array.qsort (List.toArray l) (· < ·)
   split input
   |> Prod.map f f
   |> Util.uncurry Array.zip
   |> Array.map distance
   |> Array.foldr Nat.add 0
+
+def similarity (list: List Nat) (ref : Nat) : Nat :=
+  list
+  |> List.filter (· = ref)
+  |> List.length
+  |> ref.mul
+
+def solve2 (input : List (Prod Nat Nat)) : Nat :=
+  match split input with
+  | (left, right) =>
+    left
+    |> List.map (similarity right)
+    |> List.foldr Nat.add 0
 
 -- Parsing
 
@@ -40,6 +53,6 @@ def parse? (input : List String) : Option (List (Prod Nat Nat)) :=
   input
   |> List.mapM parseLine?
 
-def run : IO Unit := Util.run "input/day01.txt" parse? solve
+def run : IO Unit := Util.run "input/day01.txt" parse? solve2
 
 end Day01
