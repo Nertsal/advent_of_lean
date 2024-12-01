@@ -1,4 +1,3 @@
 import AdventOfLean
 
-def main : IO Unit :=
-  IO.println s!"Hello, {hello}!"
+def main : IO Unit := Day01.run
