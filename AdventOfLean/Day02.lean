@@ -29,12 +29,28 @@ def solve (input : List (List Nat)) : Nat :=
   |> List.filter isSafe
   |> List.length
 
+def subReports : List Nat -> List (List Nat)
+  | [] => []
+  | x :: xs => xs :: (
+    subReports xs
+    |> List.map (x :: ·)
+  )
+
+def isSafe2 (input : List Nat) : Bool :=
+  (input :: subReports input)
+  |> (List.any · isSafe)
+
+def solve2 (input : List (List Nat)) : Nat :=
+  input
+  |> List.filter isSafe2
+  |> List.length
+
 -- Parsing
 
 def parseLine? (input : String) : Option (List Nat) :=
   input.split Char.isWhitespace
   |> List.mapM String.toNat?
 
-def run : IO Unit := Util.run "input/day02.txt" (Util.parseByLine parseLine?) solve
+def run : IO Unit := Util.run "input/day02.txt" (Util.parseByLine parseLine?) solve2
 
 end Day02
