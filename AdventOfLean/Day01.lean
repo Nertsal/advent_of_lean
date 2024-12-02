@@ -49,10 +49,6 @@ def parseLine? (input : String) : Option (Prod Nat Nat) :=
     return (fst, snd)
   | _ => Option.none
 
-def parse? (input : List String) : Option (List (Prod Nat Nat)) :=
-  input
-  |> List.mapM parseLine?
-
-def run : IO Unit := Util.run "input/day01.txt" parse? solve2
+def run : IO Unit := Util.run "input/day01.txt" (Util.parseByLine parseLine?) solve2
 
 end Day01

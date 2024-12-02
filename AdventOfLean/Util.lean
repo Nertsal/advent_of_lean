@@ -3,6 +3,9 @@ namespace Util
 def uncurry (f : a -> b -> c) : Prod a b -> c :=
   fun prod => f prod.fst prod.snd
 
+def parseByLine [Monad m] (parseLine? : String -> m a) : List String -> m (List a) :=
+  List.mapM parseLine?
+
 def fileStream (filename : System.FilePath) : IO (Option IO.FS.Stream) := do
   let fileExists ← filename.pathExists
   if not fileExists then
