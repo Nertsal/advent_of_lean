@@ -2,18 +2,33 @@ import AdventOfLean.Util
 
 namespace Day03
 
-structure Op where
+structure Mul where
   lhs : Nat
   rhs : Nat
 deriving Repr
 
-def Op.apply (op : Op) : Nat :=
+inductive Op where
+| do : Op
+| dont : Op
+| mul (m : Mul) : Op
+deriving Repr
+
+def Mul.apply (op : Mul) : Nat :=
   op.lhs * op.rhs
 
-def solve (input : List Op) : Nat :=
+def solve (input : List Mul) : Nat :=
   input
-  |> List.map Op.apply
+  |> List.map Mul.apply
   |> List.foldr Nat.add 0
+
+def solve2 (activated : Bool) : List Op -> Nat
+| [] => 0
+| (op :: ops) => match op with
+  | Op.do => solve2 true ops
+  | Op.dont => solve2 false ops
+  | Op.mul m =>
+    let v := if activated then m.apply else 0
+    v + solve2 activated ops
 
 def List.flatten (list : List (List a)) : List a :=
   list
@@ -51,6 +66,14 @@ instance : Monad Parser where
     match parseda.data with
     | none => { data := none, tail := parseda.tail }
     | some a => (f a) parseda.tail
+
+instance : Alternative Parser where
+  failure := fun s => { data := none, tail := s }
+  orElse left right := fun s =>
+    let parsedLeft := left s
+    match parsedLeft.data with
+      | none => (right ()) s
+      | some _ => parsedLeft
 
 def Parser.filter (cond : a -> Bool) (parser : Parser a) : Parser a :=
   fun s =>
@@ -101,13 +124,24 @@ def parse3Digit : Parser Nat := do
   let digits <- Parser.filter (String.length · <= 3) <| Parser.while Char.isDigit
   Parser.something digits.toNat?
 
-def parseOp : Parser Op := do
+def parseMul : Parser Mul := do
   let _ <- Parser.exact "mul("
   let lhs <- parse3Digit
   let _ <- Parser.exact ","
   let rhs <- parse3Digit
   let _ <- Parser.exact ")"
   pure <| { lhs := lhs, rhs := rhs }
+
+def parseDo : Parser Op := do
+  let _ <- Parser.exact "do()"
+  pure Op.do
+
+def parseDont : Parser Op := do
+  let _ <- Parser.exact "don't()"
+  pure Op.dont
+
+def parseOp : Parser Op :=
+  parseDo <|> parseDont <|> (Functor.map Op.mul parseMul)
 
 def subStrsL (input : List Char) : List (List Char) :=
   let tail := match input with
@@ -125,6 +159,6 @@ def parse? (input : List String) : Option (List Op) :=
   |> List.mapM parseLine?
   |> Option.map List.flatten
 
-def run : IO Unit := Util.run "input/day03.txt" parse? solve
+def run : IO Unit := Util.run "input/day03.txt" parse? (solve2 true)
 
 end Day03
