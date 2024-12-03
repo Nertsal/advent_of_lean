@@ -3,3 +3,4 @@
 import AdventOfLean.Util
 import AdventOfLean.Day01
 import AdventOfLean.Day02
+import AdventOfLean.Day03
