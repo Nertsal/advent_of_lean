@@ -60,7 +60,7 @@ def diagonals : List (List a) -> List (List a)
   | [] => []
   | x :: xs => diagonals xs |> expandDiagonal x
 
--- secondary diagonals (down-left / up-right)
+-- main diagonals (up-left / down-right)
 def generateDiagonalLeft (input : List (List a)) : List (List a) :=
   diagonals input |> generateHorizontal
 
@@ -77,15 +77,45 @@ def solve (input : List String) : Nat :=
   |> List.filter checkCandidate
   |> List.length
 
+-- Part 2
+
+partial def leftDiagonal : List (List a) -> List a
+  | (x :: _) :: rows => x :: leftDiagonal (rows.map (fun xs => xs.tailD []))
+  | _ => []
+
+partial def rightDiagonal : List (List a) -> List a := (leftDiagonal <| mirror ·)
+
+def checkXMas (input : List (List Char)) : Bool :=
+  let leftD := leftDiagonal input
+  let left := leftD = "MAS".toList || leftD = "SAM".toList
+  let rightD := rightDiagonal input
+  let right := rightD = "MAS".toList || rightD = "SAM".toList
+  left && right
+
+def generateCellsAt (row : List a) (rows : List (List a)) : List (List (List a)) :=
+  match row with
+  | a1 :: tail@(b1 :: c1 :: _) =>
+    let tail := generateCellsAt tail (rows.map fun x => x.tailD [])
+    match rows with
+      | (a2 :: b2 :: c2 :: _)
+        :: (a3 :: b3 :: c3 :: _)
+        :: _ => [[a1,b1,c1],[a2,b2,c2],[a3,b3,c3]] :: tail
+      | _ => []
+  | _ => []
+
+def generateCells : List (List a) -> List (List (List a))
+  | [] => []
+  | row :: rows => generateCellsAt row rows |> List.append (generateCells rows)
+
+def solve2 (input : List String) : Nat :=
+  input
+  |> List.map String.toList
+  |> generateCells
+  |> List.filter checkXMas
+  |> List.length
+
 def parseByLine? (input : String) : Option String := some input
 
-def run : IO Unit := Util.run "input/day04.txt" (Util.parseByLine parseByLine?) solve
-
-#eval Util.run "input/day04example.txt" (Util.parseByLine parseByLine?) (
-  fun input => input
-  |> List.map String.toList
-  |> (fun input => generateCandidates <| input)
-  |> List.filter checkCandidate
-)
+def run : IO Unit := Util.run "input/day04.txt" (Util.parseByLine parseByLine?) solve2
 
 end Day04
