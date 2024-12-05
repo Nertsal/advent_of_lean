@@ -30,6 +30,31 @@ def solve (orders : List Order) (updates: List (List Nat)) : Nat :=
   |> List.map (fun l => List.get! l (List.length l / 2))
   |> List.foldr Nat.add 0
 
+-- Part 2
+
+def fix (orders : List Order) : List Nat -> List Nat
+  | [] => []
+  | [a] => [a]
+  | a :: b :: tail =>
+    if checkPair orders (a, b)
+    then a :: fix orders (b :: tail)
+    else b :: fix orders (a :: tail)
+
+partial def fixAll (orders : List Order) (updates : List Nat) : List Nat :=
+  let oneFixed := fix orders updates
+  if oneFixed = updates
+  then updates
+  else fixAll orders oneFixed
+
+def solve2 (orders : List Order) (updates: List (List Nat)) : Nat :=
+  updates
+  |> List.filter (fun upd => not <| check orders upd)
+  |> List.map (fixAll orders)
+  |> List.map (fun l => List.get! l (List.length l / 2))
+  |> List.foldr Nat.add 0
+
+-- Parse
+
 def split : List String -> Prod (List String) (List String)
   | [] => ([], [])
   | "" :: tail => ([], tail)
@@ -55,6 +80,6 @@ def parse? (input : List String) : Option (Prod (List Order) (List (List Nat))) 
   let updates <- Util.parseByLine parseUpdate? right
   pure (orders, updates)
 
-def run : IO Unit := Util.run "input/day05.txt" parse? (Util.uncurry solve)
+def run : IO Unit := Util.run "input/day05.txt" parse? (Util.uncurry solve2)
 
 end Day05
