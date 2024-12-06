@@ -6,3 +6,4 @@ import AdventOfLean.Day02
 import AdventOfLean.Day03
 import AdventOfLean.Day04
 import AdventOfLean.Day05
+import AdventOfLean.Day06
