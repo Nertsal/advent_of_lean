@@ -118,21 +118,6 @@ partial def checkLoop (visited : List Guard) (map : Array (Array Bool)) (guard :
   | none => false
   | some next => checkLoop (guard :: visited) map next
 
-partial def range (min : Nat) (max : Nat) : List Nat :=
-  if min >= max
-  then []
-  else min :: range (min + 1) max
-
-def listRectangle (left : List a) (right : List b) : List (Prod a b) :=
-  match left with
-  | [] => []
-  | a :: left => right.map (a, ·) |> List.append (listRectangle left right)
-
-def allPositions (map : Array (Array a)) : List (Prod Nat Nat) :=
-  let x := range 0 (map.getD 0 #[]).size
-  let y := range 0 map.size
-  listRectangle x y
-
 def setCell (cell : a) (pos : Prod Nat Nat) (map : Array (Array a)) : Array (Array a) :=
   map.getD pos.snd #[]
   |> (fun row => row.setD pos.fst cell)
