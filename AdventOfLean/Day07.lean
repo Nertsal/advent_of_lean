@@ -10,12 +10,14 @@ deriving Repr
 inductive Op where
 | add : Op
 | mul : Op
+| cat : Op
 deriving Repr
 
 def Op.apply (op : Op) (a : Nat) (b : Nat) : Nat :=
   match op with
   | .add => a + b
   | .mul => a * b
+  | .cat => a * 10 ^ (Nat.toDigits 10 b).length + b
 
 def apply (ops : List Op) (args : List Nat) : Nat :=
   match args, ops with
@@ -38,15 +40,24 @@ def generateOps : Nat -> List (List Op)
     tail.map (fun l => [Op.add :: l, Op.mul :: l])
     |> List.flatten
 
-def solvable (eq : Equation) : Bool :=
-  generateOps eq.rhs.length.pred
+def solvable (gen : Nat -> List (List Op)) (eq : Equation) : Bool :=
+  gen eq.rhs.length.pred
   |> (List.any · (check · eq))
 
-def solve (input : List Equation) : Nat :=
+def solve (gen : Nat -> List (List Op)) (input : List Equation) : Nat :=
   input
-  |> List.filter solvable
-  |> List.map (Equation.lhs)
+  |> List.filter (solvable gen)
+  |> List.map Equation.lhs
   |> List.foldr Nat.add 0
+
+-- Part 2
+
+def generateOps2 : Nat -> List (List Op)
+  | 0 => [[]]
+  | .succ n =>
+    let tail := generateOps2 n
+    tail.map (fun l => [Op.add :: l, Op.mul :: l, Op.cat :: l])
+    |> List.flatten
 
 -- Parse
 
@@ -60,6 +71,6 @@ def parseEquation? (line : String) : Option Equation :=
     pure <| { lhs := lhs, rhs := numbers }
   | _ => none
 
-def run : IO Unit := Util.run "input/day07.txt" (Util.parseByLine parseEquation?) solve
+def run : IO Unit := Util.run "input/day07.txt" (Util.parseByLine parseEquation?) (solve generateOps2)
 
 end Day07
