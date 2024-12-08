@@ -8,3 +8,4 @@ import AdventOfLean.Day04
 import AdventOfLean.Day05
 import AdventOfLean.Day06
 import AdventOfLean.Day07
+import AdventOfLean.Day08
