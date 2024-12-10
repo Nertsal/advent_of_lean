@@ -92,6 +92,17 @@ def solve (input : Array (Array Nat)) : Nat :=
   )
   |> List.foldr Nat.add 0
 
+-- Part2
+
+def solve2 (input : Array (Array Nat)) : Nat :=
+  input
+  |> findTrailHeads
+  |> List.map (fun pos =>
+      findTrailsFrom input 0 pos
+      |> List.length
+  )
+  |> List.foldr Nat.add 0
+
 -- Parse
 
 def parseDigit? (c : Char) : Option Nat :=
@@ -107,14 +118,9 @@ def parse? (input : List String) : Option (Array (Array Nat)) := do
   let lines <-Util.parseByLine parseLine? input
   pure lines.toArray
 
-def run : IO Unit := Util.run "input/day10.txt" parse? solve
+def run : IO Unit := Util.run "input/day10.txt" parse? solve2
 
 #eval Util.run "input/day10example.txt" parse? solve
--- #eval Util.run "input/day10example.txt" parse? (fun input =>
---   findNeighbors input (3, 0)
---   |> List.filter (fun pos => getHeight input pos == 1 + 1)
---   -- |> List.map (fun pos => findTrailsFrom input (0 + 1) pos)
---   -- |> List.flatten
--- )
+#eval Util.run "input/day10example.txt" parse? solve2
 
 end Day10
