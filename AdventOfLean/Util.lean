@@ -6,14 +6,14 @@ def uncurry (f : a -> b -> c) : Prod a b -> c :=
 def parseByLine [Monad m] (parseLine? : String -> m a) : List String -> m (List a) :=
   List.mapM parseLine?
 
-def fileStream (filename : System.FilePath) : IO (Option IO.FS.Stream) := do
+def fileStream (filename : System.FilePath) (mode : IO.FS.Mode) : IO (Option IO.FS.Stream) := do
   let fileExists ← filename.pathExists
   if not fileExists then
     let stderr ← IO.getStderr
     stderr.putStrLn s!"File not found: {filename}"
     pure none
   else
-    let handle ← IO.FS.Handle.mk filename IO.FS.Mode.read
+    let handle ← IO.FS.Handle.mk filename mode
     pure (some (IO.FS.Stream.ofHandle handle))
 
 partial def readLines (stream : IO.FS.Stream) : IO (List String) := do
@@ -25,9 +25,14 @@ partial def readLines (stream : IO.FS.Stream) : IO (List String) := do
     pure (line.trimRight :: tail)
 
 def readFile (filename : System.FilePath) : IO (List String) := do
-  let stream <- fileStream filename
+  let stream <- fileStream filename IO.FS.Mode.read
   let stream := stream.get!
   readLines stream
+
+def writeFile (filename : System.FilePath) (data : String) : IO Unit := do
+  let stream <- fileStream filename IO.FS.Mode.write
+  let stream := stream.get!
+  stream.putStr data
 
 def run [Inhabited a] [ToString b] (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b) : IO Unit := do
   let input <- Util.readFile filename

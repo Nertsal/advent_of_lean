@@ -1,4 +1,5 @@
 import AdventOfLean.Util
+import Lean.Data.HashMap
 
 namespace Day11
 
@@ -51,10 +52,81 @@ def repeatApply (n : Nat) (f : a -> a) (input : a) : a :=
   | 0 => input
   | .succ n => repeatApply n f (f input)
 
-def solve (input : List Nat) : Nat :=
+def solve (n : Nat) (input : List Nat) : Nat :=
   input
-  |> repeatApply 25 blink
+  |> repeatApply n blink
   |> List.length
+
+-- Part 2
+-- backup/day11.rs
+
+structure CacheM (key : Type) (value : Type) (a : Type) [BEq key] [Hashable key] where
+  runCached : Lean.HashMap key value -> Prod (Lean.HashMap key value) a
+
+abbrev StoneCacheM (a : Type) : Type := CacheM (Prod Nat Nat) Nat a
+
+-- instance (key : Type) (value : Type) [BEq key] [Hashable key]
+--   : Monad (fun a => CacheM key value a) where
+--   pure a := { runCached := fun cache => (cache, a) }
+--   bind result next := {
+--     runCached := (fun cache1 =>
+--       let (cache2, a) := result.runCached cache1
+--       (next a).runCached cache2
+--     )
+--   }
+
+instance : Monad StoneCacheM where
+  pure a := { runCached := fun cache => (cache, a) }
+  bind result next := {
+    runCached := (fun cache1 =>
+      let (cache2, a) := result.runCached cache1
+      (next a).runCached cache2
+    )
+  }
+
+def CacheM.get (key : k) [BEq k] [Hashable k] : CacheM k v (Option v) :=
+  {
+    runCached := (fun cache =>
+      (cache, cache.find? key)
+    )
+  }
+
+def CacheM.insert (key : k) (value : v) [BEq k] [Hashable k] : CacheM k v Unit :=
+  {
+    runCached := (fun cache =>
+      (cache.insert key value, ())
+    )
+  }
+
+def blinkStone2Raw : Nat -> Nat -> StoneCacheM Nat
+  | 0, _ => pure 1
+  | .succ n, 0 => blinkStone2Raw n 1
+  | .succ n, stone =>
+      let digits := Nat.toDigits 10 stone
+      if digits.length % 2 == 0
+      then do
+        let (a, b) := split (digits.length / 2) digits
+        let left <- blinkStone2Raw n (digitsToNat a)
+        let right <- blinkStone2Raw n (digitsToNat b)
+        pure <| left + right
+      else
+        blinkStone2Raw n (stone * 2024)
+
+def blinkStone2 (n : Nat) (stone : Nat) : StoneCacheM Nat := do
+  let cached <- CacheM.get (n, stone)
+  match cached with
+  | .some count => pure count
+  | .none =>
+      let count <- blinkStone2Raw n stone
+      CacheM.insert (n, stone) count
+      pure count
+
+def solve2 (n : Nat) (input : List Nat) : Nat :=
+  input
+  |> List.mapM (blinkStone2 n)
+  |> (fun m => CacheM.runCached m Lean.HashMap.empty)
+  |> Prod.snd
+  |> List.foldr Nat.add 0
 
 -- Parse
 
@@ -64,8 +136,9 @@ def parse? : List String -> Option (List Nat)
       |> List.mapM String.toNat?
   | _ => none
 
-def run : IO Unit := Util.run "input/day11.txt" parse? solve
+def run : IO Unit := Util.run "input/day11.txt" parse? (solve2 75)
 
-#eval Util.run "input/day11example.txt" parse? solve
+#eval Util.run "input/day11example.txt" parse? (solve 25)
+#eval Util.run "input/day11example.txt" parse? (solve2 25)
 
 end Day11
