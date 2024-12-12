@@ -1,3 +1,3 @@
 import AdventOfLean
 
-def main : IO Unit := Day11.run
+def main : IO Unit := Day12.run

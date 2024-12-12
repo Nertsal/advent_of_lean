@@ -34,10 +34,14 @@ def writeFile (filename : System.FilePath) (data : String) : IO Unit := do
   let stream := stream.get!
   stream.putStr data
 
-def run [Inhabited a] [ToString b] (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b) : IO Unit := do
+def getAnswer [Inhabited a] (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b) : IO b := do
   let input <- Util.readFile filename
   let input := (parse? input).get!
   let answer := solve input
+  pure answer
+
+def run [Inhabited a] [ToString b] (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b) : IO Unit := do
+  let answer <- getAnswer filename parse? solve
   IO.println answer
 
 end Util
