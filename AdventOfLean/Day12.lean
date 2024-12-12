@@ -173,11 +173,95 @@ def findRegions (input : Map) : List Region := Id.run do
   let ((), result) <- StateT.run findRegionsM state
   pure (result.regions)
 
-def solve (input : Map) : Nat :=
+def solve (costF : Region -> Nat) (input : Map) : Nat :=
   input
   |> findRegions
-  |> List.map regionPrice
+  |> List.map costF
   |> List.foldr Nat.add 0
+
+-- Part 2
+
+structure CostState where
+  region : Region
+  checked : List Position
+  sides : Nat
+deriving Repr
+
+def markCheckedCostM (pos : Position) : StateM CostState Bool := do
+  let state <- StateT.get
+  let checked := state.checked.contains pos
+  if not checked
+  then do
+    StateT.set { state with checked := pos :: state.checked }
+    pure checked
+  else pure checked
+
+def rotate (dir : Prod Int Int) : Prod Int Int :=
+  (dir.snd, -dir.fst)
+
+def negate (dir : Prod Int Int) : Prod Int Int :=
+  (-dir.fst, -dir.snd)
+
+def addM (pos : Position) (dir : Prod Int Int) : StateM CostState (Option Position) :=
+  let pos := (Int.ofNat pos.fst + dir.fst, Int.ofNat pos.snd + dir.snd)
+  if pos.fst < 0 || pos.snd < 0
+  then pure none
+  else do
+    let pos := pos.map Int.natAbs Int.natAbs
+    let state <- StateT.get
+    pure <| if state.region.positions.contains pos
+      then some pos
+      else none
+  
+def checkDir (pos : Position) (dir : Prod Int Int) : StateM CostState Bool := do
+  let pos <- addM pos dir
+  pure pos.isSome
+
+def incSidesM : StateM CostState Unit := do
+  let state <- StateT.get
+  StateT.set { state with sides := state.sides + 1 }
+
+partial def markAllCheckedIn (pos : Position) (dir : Prod Int Int) (moveDir : Prod Int Int)
+: StateM CostState Unit
+:= do
+  let check <- checkDir pos dir
+  if check
+  then pure ()
+  else
+  let _ <- markCheckedCostM pos
+  let next <- addM pos moveDir
+  match next with
+  | .none => pure ()
+  | .some pos => markAllCheckedIn pos dir moveDir
+
+def checkPositionSide (dir : Prod Int Int) (pos : Position) : StateM CostState Unit := do
+  let wasChecked <- markCheckedCostM pos
+  let noSide <- checkDir pos dir
+  if wasChecked || noSide
+  then pure ()
+  else
+    incSidesM
+    let moveDir := rotate dir
+    markAllCheckedIn pos dir moveDir
+    markAllCheckedIn pos dir (negate moveDir)
+
+def regionSidesM (dir : Prod Int Int) : StateM CostState Unit := do
+  let state <- StateT.get
+  state.region.positions
+  |> (fun l => List.forM l (checkPositionSide dir))
+
+def regionSides (input : Region) : Nat := Id.run do
+  let state := { region := input, checked := [], sides := 0 : CostState }
+  let ((), up) <- StateT.run (regionSidesM (0,1)) state
+  let ((), down) <- StateT.run (regionSidesM (0,-1)) state
+  let ((), left) <- StateT.run (regionSidesM (-1,0)) state
+  let ((), right) <- StateT.run (regionSidesM (1,0)) state
+  pure (up.sides + down.sides + left.sides + right.sides)
+
+def regionPrice2 (input : Region) : Nat :=
+  regionArea input * regionSides input
+
+-- Parse
 
 def parse? (input : List String) : Option Map :=
   pure (input
@@ -185,10 +269,14 @@ def parse? (input : List String) : Option Map :=
     |> List.toArray
   )
 
-def run : IO Unit := Util.run "input/day12.txt" parse? solve
+def run : IO Unit := Util.run "input/day12.txt" parse? (solve regionPrice2)
 
-#eval Util.getAnswer "input/day12example2.txt" parse? solve
-#eval Util.getAnswer "input/day12example3.txt" parse? solve
-#eval Util.getAnswer "input/day12example.txt" parse? solve
+#eval Util.getAnswer "input/day12example2.txt" parse? (solve regionPrice) -- 140
+#eval Util.getAnswer "input/day12example3.txt" parse? (solve regionPrice) -- 772
+#eval Util.getAnswer "input/day12example.txt" parse? (solve regionPrice) -- 1930
+
+#eval Util.getAnswer "input/day12example2.txt" parse? (solve regionPrice2) -- 80
+#eval Util.getAnswer "input/day12example3.txt" parse? (solve regionPrice2) -- 436
+#eval Util.getAnswer "input/day12example.txt" parse? (solve regionPrice2) -- 1206
 
 end Day12
