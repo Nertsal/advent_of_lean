@@ -40,6 +40,16 @@ def solve (input : List Machine) : Nat :=
   |> List.filterMap solveMachine
   |> List.foldr Nat.add 0
 
+-- Part 2
+
+def solve2 (input : List Machine) : Nat :=
+  input
+  |> List.map (fun machine =>
+      { machine with prize := machine.prize.map (· + 10000000000000) (· + 10000000000000) }
+  )
+  |> List.filterMap solveMachine
+  |> List.foldr Nat.add 0
+
 -- Parse
 
 def stripPrefix (pref : List Char) (s : List Char) : Option (List Char) :=
@@ -121,12 +131,20 @@ def parse? (input : List String) : Option (List Machine) :=
   |> List.split ""
   |> List.mapM parseMachine?
 
-def run : IO Unit := Util.run "input/day13.txt" parse? solve
+def run : IO Unit := Util.run "input/day13.txt" parse? solve2
 
 #eval Util.run "input/day13example.txt" parse? solve
 #eval Util.run "input/day13example.txt" parse? (fun input =>
   input
-  -- |> List.length
+  |> List.map solveMachineImpl
+)
+
+#eval Util.run "input/day13example.txt" parse? solve2
+#eval Util.run "input/day13example.txt" parse? (fun input =>
+  input
+  |> List.map (fun machine =>
+      { machine with prize := machine.prize.map (· + 10000000000000) (· + 10000000000000) }
+  )
   |> List.map solveMachineImpl
 )
 
