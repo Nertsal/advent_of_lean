@@ -7,14 +7,8 @@ def parseByLine [Monad m] (parseLine? : String -> m a) : List String -> m (List 
   List.mapM parseLine?
 
 def fileStream (filename : System.FilePath) (mode : IO.FS.Mode) : IO (Option IO.FS.Stream) := do
-  let fileExists ← filename.pathExists
-  if not fileExists then
-    let stderr ← IO.getStderr
-    stderr.putStrLn s!"File not found: {filename}"
-    pure none
-  else
-    let handle ← IO.FS.Handle.mk filename mode
-    pure (some (IO.FS.Stream.ofHandle handle))
+  let handle ← IO.FS.Handle.mk filename mode
+  pure (some (IO.FS.Stream.ofHandle handle))
 
 partial def readLines (stream : IO.FS.Stream) : IO (List String) := do
   let line ← stream.getLine

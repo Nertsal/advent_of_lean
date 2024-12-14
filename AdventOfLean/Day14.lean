@@ -27,11 +27,13 @@ def wrapCoord (size : Int) (x : Int) : Int :=
 def wrapPos (mapSize : Position) (pos : Position) : Position :=
   (wrapCoord mapSize.fst pos.fst, wrapCoord mapSize.snd pos.snd)
 
+def stepRobot (mapSize : Position) (robot : Robot) : Position :=
+  wrapPos mapSize (addPos robot.position robot.velocity)
+
 def simulateRobot (mapSize : Position) (robot : Robot) : Nat -> Position
   | 0 => robot.position
   | .succ n =>
-      let nextPos := wrapPos mapSize (addPos robot.position robot.velocity)
-      simulateRobot mapSize { robot with position := nextPos } n
+      simulateRobot mapSize { robot with position := stepRobot mapSize robot } n
 
 structure QuadrantCounter where
   btmLeft : Nat
@@ -80,6 +82,55 @@ def solve (steps : Nat) (mapSize : Position) (input : List Robot) : Nat :=
   |> List.map (posQuadrant mapSize)
   |> List.foldr mergeCounters quadZero
   |> (fun counter => counter.btmLeft * counter.btmRight * counter.topLeft * counter.topRight)
+
+-- Part 2
+
+def couldBeTree (mapSize : Position) (input : List Robot) : Bool :=
+  input
+  |> List.map (fun r => r.position)
+  |> List.map (posQuadrant mapSize)
+  |> List.foldr mergeCounters quadZero
+  |> (fun counter => counter.btmLeft * counter.btmRight * counter.topLeft * counter.topRight)
+  |> (fun factor => factor < 50000000)
+  
+
+def convertMap (mapSize : Position) : List Robot -> Array (Array Bool)
+  | [] => Array.mkArray mapSize.snd.natAbs (Array.mkArray mapSize.fst.natAbs false)
+  | r :: rs =>
+      let map := convertMap mapSize rs
+      let row := Array.getD map r.position.snd.natAbs #[]
+      let newRow := Array.setD row r.position.fst.natAbs true
+      Array.setD map r.position.snd.natAbs newRow
+
+def renderMap (mapSize : Position) (map : List Robot) : List String :=
+  let map := convertMap mapSize map
+  map.toList
+  |> List.map (fun l =>
+      l.toList |> List.map (fun f => if f
+        then " "
+        else "o"
+      )
+      |> List.foldr String.append ""
+  )
+
+def renderToFile (n : Nat) (mapSize : Position) (input : List Robot) : IO Unit := do
+  let name := s!"second{n}.txt"
+  IO.println s!"rendering {name}"
+  let map := renderMap mapSize input
+  Util.writeFile s!"output/day14/{name}"
+    (map |> List.intersperse "\n" |> List.foldr String.append "")
+
+partial def solve2 (mapSize : Position) (input : List Robot) (n : Nat) (limit : Nat) : IO Unit :=
+  if n > limit
+  then pure ()
+  else do
+
+  if couldBeTree mapSize input
+  then renderToFile n mapSize input
+  else pure ()
+
+  let nextMap := List.map (fun r => { r with position := stepRobot mapSize r }) input
+  solve2 mapSize nextMap (n + 1) limit
 
 -- Parse
 
@@ -150,15 +201,13 @@ def parseLine? (input : String) : Option Robot := do
 
 #eval parseLine? "p=10,3 v=-1,2"
 
-def run : IO Unit := Util.run "input/day14.txt" (Util.parseByLine parseLine?) (solve 100 (101, 103))
+def run1 : IO Unit := Util.run "input/day14.txt" (Util.parseByLine parseLine?) (solve 100 (101, 103))
+def run : IO Unit := do
+  let filename := "input/day14.txt"
+  let input <- Util.readFile filename
+  let input := (Util.parseByLine parseLine? input).get!
+  solve2 (101, 103) input 0 10000
 
 #eval Util.getAnswer "input/day14example.txt" (Util.parseByLine parseLine?) (solve 100 (11, 7))
-#eval Util.getAnswer "input/day14example.txt" (Util.parseByLine parseLine?) (fun input =>
-  input
-  |> List.map (fun r => simulateRobot (11,7) r 100)
-  |> List.map (posQuadrant (11,7))
-  |> List.foldr mergeCounters quadZero
-  -- |> (fun counter => counter.btmLeft * counter.btmRight * counter.topLeft * counter.topRight)
-)
 
 end Day14
