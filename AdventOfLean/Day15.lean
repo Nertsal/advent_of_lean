@@ -5,7 +5,6 @@ namespace Day15
 abbrev Position : Type := Prod Int Int
 
 structure Map where
-  size : Position
   boxes : List Position
   walls : List Position
   robot : Position
@@ -18,9 +17,8 @@ inductive Direction where
 | up : Direction
 deriving Repr
 
-def Map.empty (size : Position) : Map :=
+def Map.empty : Map :=
   {
-    size := size,
     boxes := [],
     walls := [],
     robot := (-1, -1),
@@ -28,7 +26,6 @@ def Map.empty (size : Position) : Map :=
 
 def Map.merge (a : Map) (b : Map) : Map :=
   {
-    size := b.size,
     boxes := List.append a.boxes b.boxes,
     walls := List.append a.walls b.walls,
     robot := if b.robot == (-1, -1) then a.robot else b.robot,
@@ -72,6 +69,61 @@ def solve (map : Map) (moves : List Direction) : Int :=
       |> List.foldr Int.add 0
   )
 
+-- Part 2
+
+def convert (map : Map) : Map :=
+  let convertPos := fun pos => (pos.fst * 2, pos.snd)
+  {
+    walls := map.walls |> List.map convertPos
+    boxes := map.boxes |> List.map convertPos
+    robot := convertPos (map.robot),
+  }
+
+partial def push2? (map : Map) (pos : Position) (dir : Direction) : Option Map :=
+  if map.walls.contains pos || map.walls.contains (pos.fst - 1, pos.snd)
+  then none
+  else
+    if map.boxes.contains pos
+    then do
+      let next1 := pos.add dir.toPos
+      let map <- if dir.toPos.fst == 1
+        then push2? map (next1.fst + 1, next1.snd) dir
+        else push2? map next1 dir
+      let map <- if dir.toPos.fst == 0
+        then push2? map (next1.fst + 1, next1.snd) dir
+        else some map
+      let boxes := map.boxes.removeAll [pos]
+      some { map with boxes := next1 :: boxes }
+    else if map.boxes.contains (pos.fst - 1, pos.snd)
+    then do
+      let pos : Position := (pos.fst - 1, pos.snd)
+      let next1 := pos.add dir.toPos
+      let map <- if dir.toPos.fst == 1
+        then push2? map (next1.fst + 1, next1.snd) dir
+        else push2? map next1 dir
+      let map <- if dir.toPos.fst == 0
+        then push2? map (next1.fst + 1, next1.snd) dir
+        else some map
+      let boxes := map.boxes.removeAll [pos]
+      some { map with boxes := next1 :: boxes }
+    else
+      some map
+
+def step2 (map : Map) (move : Direction) : Map :=
+  let nextPos := map.robot.add move.toPos
+  match push2? map nextPos move with
+  | .none => map
+  | .some nextMap => { nextMap with robot := nextPos }
+
+def solve2 (map : Map) (moves : List Direction) : Int :=
+  let map := convert map
+  moves
+  |> List.foldl step2 map
+  |> (fun m => m.boxes
+      |> List.map (fun p => 100 * p.snd + p.fst)
+      |> List.foldr Int.add 0
+  )
+
 -- Parse
 
 def List.split [BEq a] (sep : a) : List a -> List (List a)
@@ -100,20 +152,19 @@ def iterPositions (input : List (List a)) : List (Prod Position a) :=
   |> List.flatten
 
 def parseOne? (pos : Position) : Char -> Option Map
-  | '.' => some <| Map.empty (0, 0)
-  | '#' => some <| { Map.empty (0, 0) with walls := [pos] }
-  | 'O' => some <| { Map.empty (0, 0) with boxes := [pos] }
-  | '@' => some <| { Map.empty (0, 0) with robot := pos }
+  | '.' => some <| Map.empty
+  | '#' => some <| { Map.empty with walls := [pos] }
+  | 'O' => some <| { Map.empty with boxes := [pos] }
+  | '@' => some <| { Map.empty with robot := pos }
   | _ => none
 
 def parseMap? (input : List String) : Option Map :=
-  let size := ((input.headD "").length, input.length).map Int.ofNat Int.ofNat
   input
   |> List.map String.toList
   |> iterPositions
   |> List.mapM (Util.uncurry parseOne?)
   |> Option.map (fun l => l
-      |> List.foldr Map.merge (Map.empty size)
+      |> List.foldr Map.merge Map.empty
   )
 
 def parseMoves? (input : List String) : Option (List Direction) :=
@@ -137,17 +188,13 @@ def parse? (input : List String) : Option (Prod Map (List Direction)) :=
       pure (map, moves)
   | _ => none
 
-def run : IO Unit := Util.run "input/day15.txt" parse? (Util.uncurry solve)
+def run : IO Unit := Util.run "input/day15.txt" parse? (Util.uncurry solve2)
 
-#eval Util.getAnswer "input/day15example.txt" parse? (Util.uncurry solve)
-#eval Util.getAnswer "input/day15example2.txt" parse? (Util.uncurry solve)
-#eval Util.getAnswer "input/day15example3.txt" parse? (fun (map, moves) =>
-  moves
-  |> List.foldl step map
-  -- |> (fun m => m.boxes
-  --     |> List.map (fun p => 100 * p.snd + p.fst)
-  --     |> List.foldr Int.add 0
-  -- )
-)
+#eval Util.getAnswer "input/day15example.txt" parse? (Util.uncurry solve) -- 2028
+#eval Util.getAnswer "input/day15example2.txt" parse? (Util.uncurry solve) -- 10092
+
+#eval Util.getAnswer "input/day15example.txt" parse? (Util.uncurry solve2)
+#eval Util.getAnswer "input/day15example2.txt" parse? (Util.uncurry solve2) -- 9021
+#eval Util.getAnswer "input/day15example4.txt" parse? (Util.uncurry solve2) -- 618
 
 end Day15
