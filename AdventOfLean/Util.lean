@@ -28,14 +28,19 @@ def writeFile (filename : System.FilePath) (data : String) : IO Unit := do
   let stream := stream.get!
   stream.putStr data
 
-def getAnswer [Inhabited a] (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b) : IO b := do
+def getAnswer (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b)
+: IO (Option b) := do
   let input <- Util.readFile filename
-  let input := (parse? input).get!
-  let answer := solve input
-  pure answer
+  match parse? input with
+  | .none => pure none
+  | .some input => do
+      let answer := solve input
+      pure (some answer)
 
-def run [Inhabited a] [ToString b] (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b) : IO Unit := do
+def run [ToString b] (filename : System.FilePath) (parse? : List String -> Option a) (solve : a -> b) : IO Unit := do
   let answer <- getAnswer filename parse? solve
-  IO.println answer
+  match answer with
+  | .none => pure ()
+  | .some a => IO.println a
 
 end Util
